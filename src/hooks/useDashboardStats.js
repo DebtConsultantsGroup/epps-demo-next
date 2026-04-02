@@ -1,3 +1,5 @@
+'use client';
+
 import { useState, useEffect, useCallback } from 'react';
 import { EFT_STATUSES, FEE_STATUSES, CARDHOLDER_STATUSES, getStatusConfig } from '../constants/statusConfig';
 

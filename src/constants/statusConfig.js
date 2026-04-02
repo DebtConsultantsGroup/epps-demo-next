@@ -1,3 +1,5 @@
+'use client';
+
 // Status configuration for EFT, Fee, and Cardholder statuses
 // Used for dashboard visualizations and status breakdowns
 
