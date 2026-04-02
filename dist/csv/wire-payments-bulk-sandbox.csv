@@ -1,6 +1,0 @@
-CardHolderID,AmountReceived,DateReceived,ProgramFee,SetupFee,WireFee,SenderName,Reference
-0040,1250.00,2026-02-17,45.00,0.00,10.00,Atlas Funding LLC,WIRE-0040-A
-0042,980.50,2026-02-17,25.00,15.00,10.00,Blue Ridge Capital,WIRE-0042-B
-0045,2100.00,2026-02-17,60.00,25.00,10.00,Summit Recovery Group,WIRE-0045-C
-0046,1540.25,2026-02-17,35.00,0.00,10.00,Harbor Collections,WIRE-0046-D
-10010,875.00,2026-02-17,20.00,0.00,10.00,Northstar Settlements,WIRE-10010-E

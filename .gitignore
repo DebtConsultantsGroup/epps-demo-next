@@ -125,6 +125,7 @@ public/csv/*
 # Next.js
 .next
 out
+dist
 
 
 .sfdx
