@@ -122,8 +122,9 @@ public/csv/*
 .yarn/install-state.gz
 .pnp.*
 
-# Vite
-dist
+# Next.js
+.next
+out
 
 
 .sfdx
