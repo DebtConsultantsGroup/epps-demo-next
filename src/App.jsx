@@ -24,7 +24,8 @@ import {
   Settings,
   BookOpenText,
   AlertTriangle,
-  Download
+  Download,
+  FileText
 } from 'lucide-react';
 import theme from './theme';
 
@@ -34,6 +35,7 @@ import Cardholders from './components/Cardholders';
 import WireApiDemo from './components/WireApiDemo';
 import PendingSettlements from './components/PendingSettlements';
 import SalesforceExport from './components/SalesforceExport';
+import StatementExport from './components/StatementExport';
 
 const drawerWidth = 240;
 
@@ -46,6 +48,7 @@ function App() {
     // { text: 'Wire API Demo', icon: <BookOpenText size={20} /> },
     { text: 'Pending Settlements', icon: <AlertTriangle size={20} /> },
     { text: 'Salesforce Export', icon: <Download size={20} /> },
+    { text: 'Statement Export', icon: <FileText size={20} /> },
   ];
 
   const renderContent = () => {
@@ -55,6 +58,7 @@ function App() {
       // case 'Wire API Demo': return <WireApiDemo />;
       case 'Pending Settlements': return <PendingSettlements />;
       case 'Salesforce Export': return <SalesforceExport />;
+      case 'Statement Export': return <StatementExport />;
       default: return <Dashboard />;
     }
   };
