@@ -1,20 +1,27 @@
-const request = require('supertest');
-const app = require('../server.cjs');
-const soapRequest = require('easy-soap-request');
+import { jest } from '@jest/globals';
 
-// Mock easy-soap-request
-jest.mock('easy-soap-request');
+jest.unstable_mockModule('easy-soap-request', () => ({
+  default: jest.fn(),
+}));
 
-describe('EPPS Comprehensive API Tests', () => {
+const { default: soapRequest } = await import('easy-soap-request');
+const { handleSoapRequest } = await import('../lib/soap.js');
+
+process.env.EPPS_WSDL_URL = 'http://test.example.com/soap?wsdl';
+process.env.EPPS_USERNAME = 'testuser';
+process.env.EPPS_PASSWORD = 'testpass';
+
+describe('EPPS SOAP Utility - Comprehensive Tests', () => {
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
-  // --- Deposit Tests ---
-  test('POST /api/deposits/find-by-date - Success', async () => {
-    const mockResponse = {
+  test('FindDepositDetailByDate - parses deposit data', async () => {
+    soapRequest.mockResolvedValue({
       response: {
+        statusCode: 200,
         body: `
+          <?xml version="1.0" encoding="utf-8"?>
           <soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
             <soap:Body>
               <FindDepositDetailByDateResponse>
@@ -32,50 +39,21 @@ describe('EPPS Comprehensive API Tests', () => {
           </soap:Envelope>
         `
       }
-    };
-    soapRequest.mockResolvedValue(mockResponse);
+    });
 
-    const res = await request(app)
-      .post('/api/deposits/find-by-date')
-      .send({ DepositStartDate: '2023-10-01', DepositEndDate: '2023-10-31' });
-
-    expect(res.statusCode).toEqual(200);
-    expect(res.body.deposits.DepositDetail.DepositTotal).toEqual('1500.00');
+    const data = await handleSoapRequest('FindDepositDetailByDate', {
+      DepositStartDate: '2023-10-01',
+      DepositEndDate: '2023-10-31'
+    });
+    expect(data.deposits.DepositDetail.DepositTotal).toEqual('1500.00');
   });
 
-  // --- Credit Card Tests ---
-  test('POST /api/cc/add - Success', async () => {
-    const mockResponse = {
+  test('FindEftByStatusDate - parses EFT status data', async () => {
+    soapRequest.mockResolvedValue({
       response: {
+        statusCode: 200,
         body: `
-          <soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
-            <soap:Body>
-              <AddCreditCardDebitResponse>
-                <AddCreditCardDebitResult>
-                  <EftTransactionID>990011</EftTransactionID>
-                  <StatusCode>Success</StatusCode>
-                </AddCreditCardDebitResult>
-              </AddCreditCardDebitResponse>
-            </soap:Body>
-          </soap:Envelope>
-        `
-      }
-    };
-    soapRequest.mockResolvedValue(mockResponse);
-
-    const res = await request(app)
-      .post('/api/cc/add')
-      .send({ CardHolderID: 'CH001', Amount: '50.00' });
-
-    expect(res.statusCode).toEqual(200);
-    expect(res.body.EftTransactionID).toEqual('990011');
-  });
-
-  // --- Status Monitor Tests ---
-  test('POST /api/eft/status-date - Success', async () => {
-    const mockResponse = {
-      response: {
-        body: `
+          <?xml version="1.0" encoding="utf-8"?>
           <soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
             <soap:Body>
               <FindEftByStatusDateResponse>
@@ -92,14 +70,12 @@ describe('EPPS Comprehensive API Tests', () => {
           </soap:Envelope>
         `
       }
-    };
-    soapRequest.mockResolvedValue(mockResponse);
+    });
 
-    const res = await request(app)
-      .post('/api/eft/status-date')
-      .send({ StatusDateFrom: '2023-10-25', StatusDateTo: '2023-10-25' });
-
-    expect(res.statusCode).toEqual(200);
-    expect(res.body.EFTList.EFTTransactionDetail.StatusCode).toEqual('Settled');
+    const data = await handleSoapRequest('FindEftByStatusDate', {
+      StatusDateFrom: '2023-10-25',
+      StatusDateTo: '2023-10-25'
+    });
+    expect(data.EFTList.EFTTransactionDetail.StatusCode).toEqual('Settled');
   });
 });

@@ -1,20 +1,29 @@
-const request = require('supertest');
-const app = require('../server.cjs');
-const soapRequest = require('easy-soap-request');
+import { jest } from '@jest/globals';
 
-// Mock easy-soap-request to avoid real API calls
-jest.mock('easy-soap-request');
+// Mock easy-soap-request before importing soap.js
+jest.unstable_mockModule('easy-soap-request', () => ({
+  default: jest.fn(),
+}));
 
-describe('EPPS Proxy Server API', () => {
+const { default: soapRequest } = await import('easy-soap-request');
+const { handleSoapRequest } = await import('../lib/soap.js');
+
+// Provide required env vars
+process.env.EPPS_WSDL_URL = 'http://test.example.com/soap?wsdl';
+process.env.EPPS_USERNAME = 'testuser';
+process.env.EPPS_PASSWORD = 'testpass';
+
+describe('handleSoapRequest', () => {
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
-  test('POST /api/cardholders/find - Success', async () => {
-    // Mock SOAP response for FindCardHolderByID
-    const mockSoapResponse = {
+  test('FindCardHolderByID - parses response correctly', async () => {
+    soapRequest.mockResolvedValue({
       response: {
+        statusCode: 200,
         body: `
+          <?xml version="1.0" encoding="utf-8"?>
           <soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
             <soap:Body>
               <FindCardHolderByIDResponse>
@@ -32,99 +41,47 @@ describe('EPPS Proxy Server API', () => {
           </soap:Envelope>
         `
       }
-    };
-    soapRequest.mockResolvedValue(mockSoapResponse);
+    });
 
-    const res = await request(app)
-      .post('/api/cardholders/find')
-      .send({ cardholderId: 'CH001' });
-
-    expect(res.statusCode).toEqual(200);
-    expect(res.body.CardHolderList.CardHolderDetail.FirstName).toEqual('John');
+    const data = await handleSoapRequest('FindCardHolderByID', { CardHolderID: 'CH001' });
+    expect(data.CardHolderList.CardHolderDetail.FirstName).toEqual('John');
   });
 
-  test('POST /api/cardholders/add - Success', async () => {
-    const mockSoapResponse = {
+  test('SOAP fault throws with error data', async () => {
+    soapRequest.mockResolvedValue({
       response: {
+        statusCode: 200,
         body: `
+          <?xml version="1.0" encoding="utf-8"?>
           <soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
             <soap:Body>
-              <AddCardHolderResponse>
-                <AddCardHolderResult>
-                   <CardHolderID>CH999</CardHolderID>
-                   <StatusCode>Success</StatusCode>
-                </AddCardHolderResult>
-              </AddCardHolderResponse>
+              <Fault>
+                <faultstring>Invalid credentials</faultstring>
+              </Fault>
             </soap:Body>
           </soap:Envelope>
         `
       }
-    };
-    soapRequest.mockResolvedValue(mockSoapResponse);
+    });
 
-    const res = await request(app)
-      .post('/api/cardholders/add')
-      .send({ FirstName: 'Jane', LastName: 'Doe' });
-
-    expect(res.statusCode).toEqual(200);
-    expect(res.body.StatusCode).toEqual('Success');
+    await expect(handleSoapRequest('FindCardHolderByID', { CardHolderID: 'CH001' }))
+      .rejects.toThrow('Invalid credentials');
   });
 
-  test('POST /api/eft/add - Success', async () => {
-    const mockSoapResponse = {
+  test('Non-XML response throws with status 400', async () => {
+    soapRequest.mockResolvedValue({
       response: {
-        body: `
-          <soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
-            <soap:Body>
-              <AddEftResponse>
-                <AddEftResult>
-                   <EftTransactionID>123456</EftTransactionID>
-                   <StatusCode>Success</StatusCode>
-                </AddEftResult>
-              </AddEftResponse>
-            </soap:Body>
-          </soap:Envelope>
-        `
+        statusCode: 200,
+        body: 'Not XML at all'
       }
-    };
-    soapRequest.mockResolvedValue(mockSoapResponse);
+    });
 
-    const res = await request(app)
-      .post('/api/eft/add')
-      .send({ Amount: '100.00', CardHolderID: 'CH001' });
-
-    expect(res.statusCode).toEqual(200);
-    expect(res.body.EftTransactionID).toEqual('123456');
-  });
-
-  test('POST /api/fees/add - Success', async () => {
-    const mockSoapResponse = {
-      response: {
-        body: `
-          <soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
-            <soap:Body>
-              <AddFeeResponse>
-                <AddFeeResult>
-                   <FeeID>9988</FeeID>
-                   <StatusCode>Success</StatusCode>
-                </AddFeeResult>
-              </AddFeeResponse>
-            </soap:Body>
-          </soap:Envelope>
-        `
-      }
-    };
-    soapRequest.mockResolvedValue(mockSoapResponse);
-
-    const res = await request(app)
-      .post('/api/fees/add')
-      .send({ 
-        FeeType: 'SettlementPayment', 
-        FeeAmount: '500.00', 
-        CardHolderID: 'CH001' 
-      });
-
-    expect(res.statusCode).toEqual(200);
-    expect(res.body.FeeID).toEqual('9988');
+    try {
+      await handleSoapRequest('FindCardHolderByID', { CardHolderID: 'CH001' });
+      throw new Error('Should have thrown');
+    } catch (error) {
+      expect(error.statusCode).toBe(400);
+      expect(error.data.StatusCode).toBe('Error');
+    }
   });
 });
